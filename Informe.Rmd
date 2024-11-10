@@ -1,0 +1,221 @@
+---
+title: "Informe PEC1"
+author: "Ignacio Monasterio Perez"
+date: "06-11-2024"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tabla de contenidos
+
+## 1. Abstract
+## 2. Objetivos del Estudio
+## 3. Materiales y Métodos
+###   3.1 Origen y naturaleza de los datos
+###   3.2 Herramientas y Procedimiento
+## 4. Resultados
+###   4.1 Exploración inicial de los datos
+###   4.2 Creación del Contenedor SummarizedExperiment
+###   4.3 Acceso a los Datos Experimentales
+###   4.4 Acceso a los metadatos
+###   4.5 Análisis Comparativo: Cachexia vs Control
+###   4.6 Análisis exploratorio
+###   Boxplot comparativo de un metabolito
+## 5. Discusión y Conclusiones
+
+\pagebreak
+
+## 1. Abstract
+En este informe se realiza un análisis exploratorio del dataset de cachexia para identificar las diferencias en metabolitos entre pacientes cachexic y controles. Los principales resultados incluyen....
+
+
+## 2. Objetivos del Estudio
+Los objetivos de este estudio son:
+
+  ·Realizar una exploración del dataset de cachexia.
+  ·Identificar patrones y diferencias significativas en los metabolitos entre grupos de pacientes.
+  ·Proporcionar un análisis inicial para futuros estudios clínicos sobre cachexia.
+
+
+## 3. Materiales y Métodos
+
+### 3.1 Origen y Naturaleza de los Datos
+
+Fuente de los datos: El dataset utilizado en este estudio proviene del repositorio de github proporcionado en el enunciado de la PEC:
+https://github.com/nutrimetabolomics/metaboData/.
+
+Tipo de datos: Incluye variables de pacientes (Patient_ID, Muscle_loss) y 63 metabolitos medidos en pacientes cachexic y controles.
+
+### 3.2 Herramientas y Procedimiento
+
+Este análisis se realizó en R y RStudio, y el procesamiento de datos incluyó los siguientes pasos:
+
+  ·Carga y Exploración de los Datos: Lectura del dataset y visualización de su estructura básica.
+  
+  ·Creación del Contenedor SummarizedExperiment: Almacenamiento de los datos en un objeto SummarizedExperiment para mantener organizados los datos y los metadatos.
+  
+  ·Análisis Comparativo: Cálculo de medias y varianzas de los metabolitos, así 
+   como comparación entre los grupos cachexic y control.
+   
+  ·Visualización: Uso de gráficos exploratorios para identificar diferencias 
+   significativas.
+
+
+## 4. Resultados
+
+### 4.1 Exploración inicial de los datos
+```{r}
+# Carga y lectura de los datos
+datos <- read.csv("C:/Users/Nacho/Downloads/human_cachexia.csv")
+
+# Verificamos el tamaño y las columnas
+dim(datos)
+```
+
+```{r}
+colnames(datos)
+```
+
+```{r}
+# Vistazo a las primeras filas
+head(datos)
+```
+
+```{r}
+# Resumen estadístico
+summary(datos)
+```
+
+
+### 4.2 Creación del Contenedor SummarizedExperiment
+```{r, message=FALSE}
+# Separar los datos experimentales (metabolitos) desde la columna 3 en adelante
+exp_data <- as.matrix(datos[, 3:ncol(datos)])  # Matriz de los metabolitos
+
+# Transponer la matriz para que los metabolitos sean las filas y los pacientes las
+# columnas
+exp_data <- t(exp_data)  # Transponemos la matriz
+
+# Asignar nombres de filas (metabolitos) y nombres de columnas (Patient_ID)
+rownames(exp_data) <- colnames(datos)[3:ncol(datos)]  # Metabolitos como filas
+colnames(exp_data) <- datos[, 1]  # Pacientes como columnas (Patient_ID)
+
+# Crear un dataframe para los metadatos, con Patient_ID como nombres de fila
+metadata <- data.frame(Muscle_loss = datos[, 2])  # Solo la columna Muscle_loss
+rownames(metadata) <- datos[, 1]  # Asignamos Patient_ID como nombres de fila
+
+# Verificamos que las dimensiones coincidan
+if (ncol(exp_data) == nrow(metadata)) {
+  print("Las dimensiones son correctas.")
+} else {
+  stop("Error: Las dimensiones no coinciden.")
+}
+
+# Crear el contenedor SummarizedExperiment
+library(SummarizedExperiment)
+
+se <- SummarizedExperiment(
+  assays = list(counts = exp_data),  # Datos experimentales (transpuestos)
+  colData = metadata  # Metadatos (Muscle_loss con Patient_ID como rownames)
+)
+
+# Revisar el contenedor
+se
+```
+
+### 4.3 Acceso a los Datos Experimentales
+```{r}
+# Extraer la matriz de datos experimentales
+metabolitos <- assay(se)
+
+# Calcular la media de cada metabolito (filas)
+metabolito_means <- rowMeans(metabolitos)
+
+# Visualizar los metabolitos con mayor media
+head(sort(metabolito_means, decreasing = TRUE))
+```
+
+```{r}
+# Calcular la varianza de cada metabolito
+metabolito_vars <- apply(metabolitos, 1, var)
+
+# Visualizar los metabolitos con mayor varianza
+head(sort(metabolito_vars, decreasing = TRUE))
+```
+
+
+### 4.4 Acceso a los metadatos
+```{r}
+# Extraer los metadatos
+metadata <- colData(se)
+
+# Contar el número de pacientes cachexic y control
+table(metadata$Muscle_loss)
+
+# Comparar medias de un metabolito (ejemplo con el primer metabolito) entre grupos
+tapply(metabolitos[1, ], metadata$Muscle_loss, mean)
+```
+
+### 4.5 Análisis Comparativo: Cachexia vs Control
+```{r}
+# Comparar las medias de todos los metabolitos entre cachexic y control
+group_means <- apply(metabolitos, 1, function(met) {
+  tapply(met, metadata$Muscle_loss, mean)
+})
+
+# Mostrar las primeras comparaciones
+head(group_means)
+```
+
+Si el experimento tiene información adicional sobre cómo se recopilaron los datos, se puede almacenar en el componente metadata().
+```{r}
+# Añadir información al componente metadata
+metadata(se) <- list(experiment_info = "Datos de metabolitos de pacientes con cachexia")
+
+# Ver la metadata
+metadata(se)
+```
+
+### 4.6 Análisis exploratorio
+```{r}
+library(ggplot2)
+```
+### Boxplot comparativo de un metabolito
+```{r}
+# Crear un dataframe para ggplot2
+metabolito_df <- data.frame(
+  Patient_ID = colnames(metabolitos),
+  Muscle_loss = metadata$Muscle_loss,
+  Metabolito1 = metabolitos[1, ]  # Primer metabolito (por ejemplo)
+)
+
+# Crear un boxplot para comparar entre cachexic y control
+ggplot(metabolito_df, aes(x = Muscle_loss, y = Metabolito1)) +
+  geom_boxplot() +
+  labs(title = "Comparación del Metabolito 1 entre Cachexia y Control", 
+       y = "Nivel del Metabolito 1")
+```
+La diferencia en los niveles de "Metabolito 1" entre ambos grupos es bastante clara:
+
+  · Pacientes con Cachexia: Tienen un rango de niveles de metabolito mucho más amplio y valores atípicos elevados. Esto podría indicar una posible relación entre niveles elevados de este metabolito y la presencia de cachexia.
+
+  · Pacientes en el Grupo Control: Muestran niveles de "Metabolito 1" más bajos y menos variables, lo que podría sugerir que niveles altos de este metabolito son menos comunes o inexistentes en personas sin cachexia.
+
+\pagebreak
+
+## 5. Discusión y Conclusiones
+
+La comparación de medias sugiere una fuerte asociación entre niveles elevados de ciertos metabolitos y la presencia de cachexia. Los pacientes con esta condición muestran consistentemente niveles más altos en múltiples metabolitos en comparación con el grupo control. Esto podría interpretarse como una señal de que la cachexia está relacionada con alteraciones significativas en el metabolismo de los pacientes, reflejadas en concentraciones elevadas de varias sustancias, muchas de las cuales están involucradas en el metabolismo energético y proteico.
+
+Estos resultados refuerzan la hipótesis inicial: la cachexia podría provocar un cambio en el perfil metabólico, posiblemente debido a un aumento en el catabolismo (degradación) de nutrientes o a alteraciones en los procesos de síntesis. La diferencia de estos niveles podría ser útil como biomarcador para el diagnóstico o monitoreo de cachexia, aunque sería necesario realizar pruebas estadísticas adicionales (como un test t o ANOVA) para determinar si estas diferencias son estadísticamente significativas. Además, la evaluación de la variabilidad y la identificación de posibles valores atípicos podrían aportar más precisión en el uso clínico de estos metabolitos como indicadores de la progresión de la enfermedad.
+
+En resumen, este análisis comparativo subraya el impacto de la cachexia en los niveles de numerosos metabolitos, lo que sugiere una afectación sistemática en los pacientes con esta condición en comparación con aquellos sin ella.
+
+## Repositorio en GitHub
+https://github.com/ignaciomonasterio/Monasterio-Perez-Ignacio_PEC1.git
+
+
+

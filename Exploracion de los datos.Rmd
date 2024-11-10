@@ -1,0 +1,143 @@
+---
+title: "Exploración de los datos"
+author: "Ignacio Monasterio Perez"
+date: "06-11-2024"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exploración inicial de los datos
+```{r}
+# Carga y lectura de los datos
+datos <- read.csv("C:/Users/Nacho/Downloads/human_cachexia.csv")
+
+# Verificamos el tamaño y las columnas
+dim(datos)
+```
+
+```{r}
+colnames(datos)
+```
+
+```{r}
+# Vistazo a las primeras filas
+head(datos)
+```
+
+```{r}
+# Resumen estadístico
+summary(datos)
+```
+
+
+# Creación del Contenedor SummarizedExperiment
+```{r, message=FALSE}
+# Separar los datos experimentales (metabolitos) desde la columna 3 en adelante
+exp_data <- as.matrix(datos[, 3:ncol(datos)])  # Matriz de los metabolitos
+
+# Transponer la matriz para que los metabolitos sean las filas y los pacientes las
+# columnas
+exp_data <- t(exp_data)  # Transponemos la matriz
+
+# Asignar nombres de filas (metabolitos) y nombres de columnas (Patient_ID)
+rownames(exp_data) <- colnames(datos)[3:ncol(datos)]  # Metabolitos como filas
+colnames(exp_data) <- datos[, 1]  # Pacientes como columnas (Patient_ID)
+
+# Crear un dataframe para los metadatos, con Patient_ID como nombres de fila
+metadata <- data.frame(Muscle_loss = datos[, 2])  # Solo la columna Muscle_loss
+rownames(metadata) <- datos[, 1]  # Asignamos Patient_ID como nombres de fila
+
+# Verificamos que las dimensiones coincidan
+if (ncol(exp_data) == nrow(metadata)) {
+  print("Las dimensiones son correctas.")
+} else {
+  stop("Error: Las dimensiones no coinciden.")
+}
+
+# Crear el contenedor SummarizedExperiment
+library(SummarizedExperiment)
+
+se <- SummarizedExperiment(
+  assays = list(counts = exp_data),  # Datos experimentales (transpuestos)
+  colData = metadata  # Metadatos (Muscle_loss con Patient_ID como rownames)
+)
+
+# Revisar el contenedor
+se
+```
+
+# Acceso a los Datos Experimentales
+```{r}
+# Extraer la matriz de datos experimentales
+metabolitos <- assay(se)
+
+# Calcular la media de cada metabolito (filas)
+metabolito_means <- rowMeans(metabolitos)
+
+# Visualizar los metabolitos con mayor media
+head(sort(metabolito_means, decreasing = TRUE))
+```
+
+```{r}
+# Calcular la varianza de cada metabolito
+metabolito_vars <- apply(metabolitos, 1, var)
+
+# Visualizar los metabolitos con mayor varianza
+head(sort(metabolito_vars, decreasing = TRUE))
+```
+
+
+# Acceso a los metadatos
+```{r}
+# Extraer los metadatos
+metadata <- colData(se)
+
+# Contar el número de pacientes cachexic y control
+table(metadata$Muscle_loss)
+
+# Comparar medias de un metabolito (ejemplo con el primer metabolito) entre grupos
+tapply(metabolitos[1, ], metadata$Muscle_loss, mean)
+```
+
+# Análisis Comparativo: Cachexia vs Control
+```{r}
+# Comparar las medias de todos los metabolitos entre cachexic y control
+group_means <- apply(metabolitos, 1, function(met) {
+  tapply(met, metadata$Muscle_loss, mean)
+})
+
+# Mostrar las primeras comparaciones
+head(group_means)
+```
+
+Si el experimento tiene información adicional sobre cómo se recopilaron los datos, se puede almacenar en el componente metadata().
+```{r}
+# Añadir información al componente metadata
+metadata(se) <- list(experiment_info = "Datos de metabolitos de pacientes con cachexia")
+
+# Ver la metadata
+metadata(se)
+```
+
+# 4.6 Análisis exploratorio
+```{r}
+library(ggplot2)
+```
+# Boxplot comparativo de un metabolito
+```{r}
+# Crear un dataframe para ggplot2
+metabolito_df <- data.frame(
+  Patient_ID = colnames(metabolitos),
+  Muscle_loss = metadata$Muscle_loss,
+  Metabolito1 = metabolitos[1, ]  # Primer metabolito (por ejemplo)
+)
+
+# Crear un boxplot para comparar entre cachexic y control
+ggplot(metabolito_df, aes(x = Muscle_loss, y = Metabolito1)) +
+  geom_boxplot() +
+  labs(title = "Comparación del Metabolito 1 entre Cachexia y Control", 
+       y = "Nivel del Metabolito 1")
+```

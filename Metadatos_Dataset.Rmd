@@ -1,0 +1,42 @@
+---
+title: "Metadatos_Dataset"
+author: "Ignacio Monasterio Perez"
+date: "2024-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Metadatos para el Análisis Cachexia vs Control
+
+Este archivo contiene la información de los metadatos asociados al análisis comparativo entre los grupos `cachexic` y `control` de pacientes.
+
+## Descripción de las Variables
+
+| Variable     | Descripción                                 |
+|--------------|---------------------------------------------|
+| Muscle_loss  | Estado del paciente (`cachexic` o `control`)|
+
+## Datos de los Pacientes
+
+- **Número de muestras:** 77
+- **Etiquetas de pacientes y su estado:**
+
+| ID de Muestra | Estado    |
+|---------------|-----------|
+| PIF_178       | cachexic  |
+| PIF_087       | cachexic  |
+| PIF_090       | cachexic  |
+| NETL_005_V1   | cachexic  |
+| ...           | ...       |
+| NETCR_019_V2  | control   |
+| NETL_012_V1   | control   |
+| NETL_012_V2   | control   |
+| NETL_003_V1   | control   |
+| NETL_003_V2   | control   |
+
+## Notas
+
+Cada muestra se clasifica según su estado de pérdida de masa muscular. El conjunto de datos incluye 77 muestras en total, divididas entre los grupos `cachexic` y `control`.
